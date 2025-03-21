@@ -5,8 +5,6 @@ using BanBanFin.Models.Static;
 using BanBanFin.Natives;
 using BanBanFin.Utils;
 using BanBanFin.Utils.ExtensionMethod;
-using System.Diagnostics;
-using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -20,14 +18,9 @@ public class MpvPlayer : MpvClient
 {
     public string ConfPath => ConfigFolder + "mpv.conf";
 
-    public string GpuApi               { get; set; } = "auto";
-    public string Path                 { get; set; } = "";
-    public string Vo                   { get; set; } = "gpu";
-    public string UsedInputConfContent { get; set; } = "";
-
-    public string Vid { get; set; } = "";
-    public string Aid { get; set; } = "";
-    public string Sid { get; set; } = "";
+    public string GpuApi { get; set; } = "auto";
+    public string Path   { get; set; } = "";
+    public string Vo     { get; set; } = "gpu";
 
     public bool Border           { get; set; } = true;
     public bool FileEnded        { get; set; }
@@ -38,12 +31,9 @@ public class MpvPlayer : MpvClient
     public bool SnapWindow       { get; set; }
     public bool TaskBarProgress  { get; set; } = true;
     public bool TitleBar         { get; set; } = true;
-    public bool WasInitialSizeSet;
-    public bool WindowMaximized { get; set; }
-    public bool WindowMinimized { get; set; }
+    public bool WindowMaximized  { get; set; }
+    public bool WindowMinimized  { get; set; }
 
-    public int Edition     { get; set; }
-    public int PlaylistPos { get; set; } = -1;
     public int Screen      { get; set; } = -1;
     public int VideoRotate { get; set; }
 
@@ -63,8 +53,6 @@ public class MpvPlayer : MpvClient
     private List<StringPair>? _audioDevices;
 
     public event Action?       Initialized;
-    public event Action?       Pause;
-    public event Action<int>?  PlaylistPosChanged;
     public event Action<Size>? VideoSizeChanged;
 
     public void Init(IntPtr formHandle, bool processCommandLine)
@@ -77,36 +65,22 @@ public class MpvPlayer : MpvClient
         foreach (var i in events)
             MpvNative.RequestEvent(MainHandle, i, 0);
 
-        MpvNative.RequestLogMessages(MainHandle, "no");
-
-        if (formHandle != IntPtr.Zero)
-            TaskDispatcher.Run(MainEventLoop);
+        // ✅ 请求日志，调试用
+        MpvNative.RequestLogMessages(MainHandle, "debug");
 
         if (MainHandle == IntPtr.Zero)
             throw new Exception("error mpv_create");
 
+        // ✅ 指定 config-dir，让 mpv 自动读取
+        SetPropertyString("config-dir", ConfigFolder);
+        SetPropertyString("config", "yes");
+
+        // ✅ 设置窗口
         if (formHandle != IntPtr.Zero)
         {
             SetPropertyString("force-window", "yes");
             SetPropertyLong("wid", formHandle.ToInt64());
         }
-
-        SetPropertyInt("osd-duration", 2000);
-        SetPropertyInt("osd-level", 3); // OSD 显示级别
-
-        SetPropertyBool("input-default-bindings", true);
-        SetPropertyBool("input-builtin-bindings", true);
-
-        SetPropertyString("idle", "yes");
-        SetPropertyString("screenshot-directory", "~~desktop/");
-        SetPropertyString("osd-playing-msg", "${media-title}");
-        SetPropertyString("osc", "yes");
-        SetPropertyString("vo", "gpu");
-        SetPropertyString("config-dir", ConfigFolder);
-        SetPropertyString("config", "yes");
-
-        if (!string.IsNullOrEmpty(UsedInputConfContent))
-            SetPropertyString("input-conf", @"memory://" + UsedInputConfContent);
 
         var err = MpvNative.Initialize(MainHandle);
 
@@ -120,41 +94,9 @@ public class MpvPlayer : MpvClient
         if (formHandle != IntPtr.Zero)
             TaskDispatcher.Run(EventLoop);
 
-        // otherwise shutdown is raised before media files are loaded,
-        // this means Lua scripts that use idle might not work correctly
-        SetPropertyString("idle", "yes");
-
-        SetPropertyString("user-data/frontend/name", "mpv.net");
-        //SetPropertyString("user-data/frontend/version", AppInfo.Version.ToString());
-        SetPropertyString("user-data/frontend/process-path", Environment.ProcessPath!);
-
-        ObservePropertyBool("pause", value =>
-        {
-            Paused = value;
-            Pause?.Invoke();
-        });
-
-        VideoRotate = GetPropertyInt("video-rotate");
-
-        ObservePropertyInt("video-rotate", value =>
-        {
-            if (VideoRotate == value) return;
-            VideoRotate = value;
-            UpdateVideoSize("dwidth", "dheight");
-        });
-
-        ObservePropertyInt("playlist-pos", value =>
-        {
-            PlaylistPos = value;
-            PlaylistPosChanged?.Invoke(value);
-
-            if (!FileEnded || value != -1) return;
-            if (GetPropertyString("keep-open") == "no")
-                CommandV("quit");
-        });
-
         Initialized?.Invoke();
     }
+
 
     public void Destroy()
     {
@@ -165,125 +107,8 @@ public class MpvPlayer : MpvClient
             MpvNative.Destroy(client.Handle);
     }
 
-    public void ProcessProperty(string? name, string? value)
-    {
-        switch (name)
-        {
-            case "autofit" :
-            {
-                if (int.TryParse(value?.Trim('%'), out var result))
-                    Autofit = result / 100f;
-            }
-                break;
-            case "autofit-smaller" :
-            {
-                if (int.TryParse(value?.Trim('%'), out var result))
-                    AutofitSmaller = result / 100f;
-            }
-                break;
-            case "autofit-larger" :
-            {
-                if (int.TryParse(value?.Trim('%'), out var result))
-                    AutofitLarger = result / 100f;
-            }
-                break;
-            case "border" :
-                Border = value == "yes";
-                break;
-            case "fs" :
-            case "fullscreen" :
-                Fullscreen = value == "yes";
-                break;
-            case "gpu-api" :
-                GpuApi = value!;
-                break;
-            case "keepaspect-window" :
-                KeepAspectWindow = value == "yes";
-                break;
-            case "screen" :
-                Screen = Convert.ToInt32(value);
-                break;
-            case "snap-window" :
-                SnapWindow = value == "yes";
-                break;
-            case "taskbar-progress" :
-                TaskBarProgress = value == "yes";
-                break;
-            case "vo" :
-                Vo = value!;
-                break;
-            case "window-maximized" :
-                WindowMaximized = value == "yes";
-                break;
-            case "window-minimized" :
-                WindowMinimized = value == "yes";
-                break;
-            case "title-bar" :
-                TitleBar = value == "yes";
-                break;
-        }
-
-        if (AutofitLarger > 1)
-            AutofitLarger = 1;
-    }
-
-
-    private Dictionary<string, string>? _conf;
-
-    public string ConfigFolder => "config/";
-
-    public Dictionary<string, string> Conf
-    {
-        get
-        {
-            if (_conf != null)
-                return _conf;
-
-            _conf = new Dictionary<string, string>();
-
-            if (File.Exists(ConfPath))
-            {
-                // 读取文件全部内容为字符串
-                var content = File.ReadAllText(ConfPath);
-                Debug.WriteLine(content);
-
-                foreach (var it in File.ReadAllLines(ConfPath))
-                {
-                    var line = it.TrimStart(' ', '-').TrimEnd();
-
-                    if (line.StartsWith("#"))
-                        continue;
-
-                    if (!line.Contains('='))
-                    {
-                        if (Regex.Match(line, "^[\\w-]+$").Success)
-                            line += "=yes";
-                        else
-                            continue;
-                    }
-
-                    var key   = line[..line.IndexOf("=", StringComparison.Ordinal)].Trim();
-                    var value = line[(line.IndexOf("=", StringComparison.Ordinal) + 1)..].Trim();
-
-                    if (value.Contains('#')     && !value.StartsWith("#") &&
-                        !value.StartsWith("'#") && !value.StartsWith("\"#"))
-
-                        value = value[..value.IndexOf("#", StringComparison.Ordinal)].Trim();
-
-                    _conf[key] = value;
-                }
-            }
-            else
-            {
-                Debug.WriteLine("config目录不存在");
-            }
-
-            foreach (var i in _conf)
-                ProcessProperty(i.Key, i.Value);
-
-            return _conf;
-        }
-    }
+    public string ConfigFolder =>
+        System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config") + System.IO.Path.DirectorySeparatorChar;
 
     private void UpdateVideoSize(string w, string h)
     {

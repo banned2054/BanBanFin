@@ -10,8 +10,6 @@
         <WindowsFormsHost
             Name="MpvWindow"
             HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch"
-            Height="720"
-            Width="1280" />
+            VerticalAlignment="Stretch" />
     </Grid>
 </Window>
