@@ -1,7 +1,9 @@
-using BanBanFin.Models.Enums.MediaInfo;
-using BanBanFin.Models.Static;
 using BanBanFin.Models;
+using BanBanFin.Models.Enums.MediaInfo;
+using BanBanFin.Models.Enums.Mpv;
+using BanBanFin.Models.Static;
 using BanBanFin.Natives;
+using BanBanFin.Utils;
 using BanBanFin.Utils.ExtensionMethod;
 using System.Diagnostics;
 using System.Drawing;
@@ -11,8 +13,6 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using BanBanFin.Models.Enums.Mpv;
-using BanBanFin.Utils;
 
 namespace BanBanFin.Controllers;
 
@@ -80,7 +80,7 @@ public class MpvPlayer : MpvClient
         MpvNative.RequestLogMessages(MainHandle, "no");
 
         if (formHandle != IntPtr.Zero)
-            TaskHelp.Run(MainEventLoop);
+            TaskDispatcher.Run(MainEventLoop);
 
         if (MainHandle == IntPtr.Zero)
             throw new Exception("error mpv_create");
@@ -118,7 +118,7 @@ public class MpvPlayer : MpvClient
         MpvNative.RequestLogMessages(Handle, "info");
 
         if (formHandle != IntPtr.Zero)
-            TaskHelp.Run(EventLoop);
+            TaskDispatcher.Run(EventLoop);
 
         // otherwise shutdown is raised before media files are loaded,
         // this means Lua scripts that use idle might not work correctly
@@ -343,7 +343,7 @@ public class MpvPlayer : MpvClient
     {
         Path = GetPropertyString("path");
         base.OnStartFile();
-        TaskHelp.Run(LoadFolder);
+        TaskDispatcher.Run(LoadFolder);
     }
 
     // executed after OnStartFile
@@ -352,7 +352,7 @@ public class MpvPlayer : MpvClient
         Duration = TimeSpan.FromSeconds(GetPropertyDouble("duration"));
 
 
-        TaskHelp.Run(UpdateTracks);
+        TaskDispatcher.Run(UpdateTracks);
 
         base.OnFileLoaded();
     }
@@ -499,7 +499,7 @@ public class MpvPlayer : MpvClient
             var files = FileTypes.GetMediaFiles(Directory.GetFiles(dir)).ToList();
 
             if (OperatingSystem.IsWindows())
-                files.Sort(new StringLogicalComparer());
+                files.Sort(new StringComparerNative());
 
             var index = files.IndexOf(path);
             files.Remove(path);
@@ -780,7 +780,7 @@ public class MpvPlayer : MpvClient
     {
         var tracks = new List<MediaTracks>();
 
-        using (var mi = new MediaInfo(path))
+        using (var mi = new MediaInfoNative(path))
         {
             var track = new MediaTracks();
             Add(track, mi.GetGeneral("Format"));
@@ -1075,7 +1075,7 @@ public class MpvPlayer : MpvClient
         if (client.Handle == IntPtr.Zero)
             throw new Exception("Error CreateNewPlayer");
 
-        TaskHelp.Run(client.EventLoop);
+        TaskDispatcher.Run(client.EventLoop);
         Clients.Add(client);
         return client;
     }

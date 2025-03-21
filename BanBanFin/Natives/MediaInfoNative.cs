@@ -1,13 +1,13 @@
-using System.Runtime.InteropServices;
 using BanBanFin.Models.Enums.MediaInfo;
+using System.Runtime.InteropServices;
 
 namespace BanBanFin.Natives;
 
-public class MediaInfo : IDisposable
+public class MediaInfoNative : IDisposable
 {
     private readonly IntPtr _handle;
 
-    public MediaInfo(string file)
+    public MediaInfoNative(string file)
     {
         if ((_handle = MediaInfo_New()) == IntPtr.Zero)
             throw new Exception("Failed to call MediaInfo_New");
@@ -70,7 +70,7 @@ public class MediaInfo : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    ~MediaInfo()
+    ~MediaInfoNative()
     {
         Dispose();
     }

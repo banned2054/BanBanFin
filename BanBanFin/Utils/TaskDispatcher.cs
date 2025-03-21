@@ -1,6 +1,6 @@
 namespace BanBanFin.Utils;
 
-public class TaskHelp
+public class TaskDispatcher
 {
     public static void Run(Action action)
     {

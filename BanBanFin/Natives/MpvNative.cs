@@ -1,9 +1,8 @@
 using BanBanFin.Models.Enums.Mpv;
-
-namespace BanBanFin.Natives;
-
 using System.Runtime.InteropServices;
 using System.Text;
+
+namespace BanBanFin.Natives;
 
 #pragma warning disable IDE1006 // type name starts with underscore
 #pragma warning disable CA1401  // P/Invokes should not be visible

@@ -1,6 +1,6 @@
 namespace BanBanFin.Models;
 
-internal class StringPair
+public class StringPair
 {
     public string Name  { get; set; }
     public string Value { get; set; }

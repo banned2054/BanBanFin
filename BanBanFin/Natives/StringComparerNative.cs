@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace BanBanFin.Natives;
 
-public class StringLogicalComparer : IComparer, IComparer<string>
+public class StringComparerNative : IComparer, IComparer<string>
 {
     [DllImport("shlwapi.dll", CharSet = CharSet.Unicode)]
     private static extern int StrCmpLogical(string? x, string? y);
