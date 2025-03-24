@@ -33,7 +33,7 @@ public partial class MainWindow : Window
         _player.Init(hwnd, processCommandLine : false);
 
         // 6. 加载视频文件示例
-        _player.LoadFiles(new[] { @"D:\Downloads\真盖塔 世界最后之日 E01.mkv" }, loadFolder : false, append : false);
+        //_player.LoadFiles(new[] { @"D:\Downloads\真盖塔 世界最后之日 E01.mkv" }, loadFolder : false, append : false);
     }
 
     // 7. 窗口关闭时销毁播放器

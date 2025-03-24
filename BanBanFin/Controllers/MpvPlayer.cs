@@ -16,8 +16,6 @@ namespace BanBanFin.Controllers;
 
 public class MpvPlayer : MpvClient
 {
-    public string ConfPath => ConfigFolder + "mpv.conf";
-
     public string GpuApi { get; set; } = "auto";
     public string Path   { get; set; } = "";
     public string Vo     { get; set; } = "gpu";
@@ -65,15 +63,8 @@ public class MpvPlayer : MpvClient
         foreach (var i in events)
             MpvNative.RequestEvent(MainHandle, i, 0);
 
-        // ✅ 请求日志，调试用
-        MpvNative.RequestLogMessages(MainHandle, "debug");
-
         if (MainHandle == IntPtr.Zero)
             throw new Exception("error mpv_create");
-
-        // ✅ 指定 config-dir，让 mpv 自动读取
-        SetPropertyString("config-dir", ConfigFolder);
-        SetPropertyString("config", "yes");
 
         // ✅ 设置窗口
         if (formHandle != IntPtr.Zero)
@@ -81,6 +72,25 @@ public class MpvPlayer : MpvClient
             SetPropertyString("force-window", "yes");
             SetPropertyLong("wid", formHandle.ToInt64());
         }
+
+        SetPropertyInt("osd-duration", 2000);
+        SetPropertyBool("input-default-bindings", true);
+        SetPropertyBool("input-builtin-bindings", false);
+
+        SetPropertyString("idle", "yes");
+        SetPropertyString("terminal", "yes");
+        SetPropertyString("input-terminal", "yes");
+        // ✅ 指定 config-dir，让 mpv 自动读取
+        var configPath     = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config").Replace("\\", "/");
+        var scriptOptsPath = System.IO.Path.Combine(configPath, "script-opts").Replace("\\", "/");
+        var scriptPath     = System.IO.Path.Combine(configPath, "scripts").Replace("\\", "/");
+        SetPropertyString("config-dir", configPath);
+        SetPropertyString("script-opts", scriptOptsPath);
+        SetPropertyString("scripts", scriptPath);
+        SetPropertyString("config", "yes");
+        SetPropertyString("log-file", configPath + "/mpv_log.txt");
+        SetPropertyString("osd-playing-msg", "${media-title}");
+        SetPropertyString("osc", "yes");
 
         var err = MpvNative.Initialize(MainHandle);
 
@@ -108,7 +118,7 @@ public class MpvPlayer : MpvClient
     }
 
     public string ConfigFolder =>
-        System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config") + System.IO.Path.DirectorySeparatorChar;
+        System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config");
 
     private void UpdateVideoSize(string w, string h)
     {
